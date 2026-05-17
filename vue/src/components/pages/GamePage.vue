@@ -1,13 +1,30 @@
 <template>
   <div class="map" @mousemove="(e) => handleMouseCoords(e)">
-    <Bullet v-for="bullet in getBullets" :key="bullet.id" :x="cameraOffsetX(bullet.x)" :y="cameraOffsetY(bullet.y)" :id="bullet.id" />
+    <Bullet v-for="bullet in getBullets" :key="bullet.id" :x="cameraOffsetX(bullet.x)" :y="cameraOffsetY(bullet.y)" :megaBullet="bullet.megaBullet" :id="bullet.id" />
+    <MegaShot v-if="getMegaShot" :startX="cameraOffsetX(getMegaShot.startX)" :startY="cameraOffsetY(getMegaShot.startY)" :endX="cameraOffsetX(getMegaShot.endX)" :endY="cameraOffsetY(getMegaShot.endY)" />
+    <AreaShot v-if="getAreaShot" :x="cameraOffsetX(getAreaShot.x)" :y="cameraOffsetY(getAreaShot.y)" :radius="getAreaShot.radius" />
+    <Bullet v-for="enemyBullet in getEnemyBullets" :key="enemyBullet.id" :x="cameraOffsetX(enemyBullet.x)" :y="cameraOffsetY(enemyBullet.y)" :id="enemyBullet.id" />
     <div class="map__player" />
-    <Enemy v-for="enemy in getEnemies" :key="enemy.id" :x="cameraOffsetX(enemy.x)" :y="cameraOffsetY(enemy.y)" :id="enemy.id" />
+    <Enemy v-for="enemy in getEnemies" :key="enemy.id" :x="cameraOffsetX(enemy.x)" :y="cameraOffsetY(enemy.y)" :type="enemy.type" :id="enemy.id" />
+    <div class="map__hotbar">
+      <div class="map__hotbar__slot">Points: {{ getPoints }}</div>
+      <div class="map__hotbar__slot">HP: {{ getHealth }} / {{ getHealthLimit }}</div>
+      <div class="map__hotbar__slot">Damage: {{ getDamage }}</div>
+      <div class="map__hotbar__slot">Mana: {{ getMana }} / {{ getManaLimit }}</div>
+    </div>
     <div v-if="!getGameStatus" class="map__over">
       Игра окончена
       <button class="map__over__restart" @click="() => restart()">
         Сыграть ещё
       </button>
+    </div>
+    <div v-if="getPause" class="map__pause">
+      Пауза
+      <button class="map__pause__upgrade" @click="() => buyHeal()"> Купить хил (10) </button>
+      <button class="map__pause__upgrade" @click="() => increaseDamage()"> Увеличение урона (25) </button>
+      <button class="map__pause__upgrade" @click="() => buyMana()"> Купить ману (15) </button>
+      <button class="map__pause__upgrade" @click="() => increaseHealthLimit()"> Увеличить лимит хп (20) </button>
+      <button class="map__pause__upgrade" @click="() => increaseManaLimit()"> Увеличить лимит маны (30) </button>
     </div>
   </div>
 </template>
@@ -15,13 +32,17 @@
 <script>
 import Bullet from './../ui/Bullet.vue'
 import Enemy from './../ui/Enemy.vue'
+import MegaShot from './../ui/MegaShot.vue'
+import AreaShot from './../ui/AreaShot.vue'
 import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'GamePage',
   components: {
     Bullet,
-    Enemy
+    Enemy,
+    MegaShot,
+    AreaShot
   },
   data () {
     return {
@@ -39,30 +60,49 @@ export default {
     ...mapGetters('game', [
       'getCoords',
       'getPoints',
+      'getHealth',
+      'getHealthLimit',
+      'getDamage',
+      'getMana',
+      'getManaLimit',
       'getBullets',
+      'getEnemyBullets',
       'getEnemies',
-      'getGameStatus'
+      'getMegaShot',
+      'getAreaShot',
+      'getGameStatus',
+      'getPause'
     ])
   },
   mounted () {
-    window.addEventListener('keydown', (e) => this.pressedArrow(e))
+    window.addEventListener('keydown', (e) => this.pressedKey(e))
     this.bulletMovement()
     this.enemyMovement()
   },
   beforeUnmount () {
-    window.removeEventListener('keydown', (e) => this.pressedArrow(e))
+    window.removeEventListener('keydown', (e) => this.pressedKey(e))
   },
   methods: {
     ...mapActions('game', [
       'pushBullet',
+      'pushEnemyBullet',
       'pushEnemy',
       'moveLeft',
       'moveRight',
       'moveUp',
       'moveDown',
       'moveBullets',
+      'moveEnemyBullets',
       'moveEnemies',
-      'setGameStatus'
+      'megaShot',
+      'areaShot',
+      'buyHeal',
+      'increaseDamage',
+      'buyMana',
+      'increaseHealthLimit',
+      'increaseManaLimit',
+      'setGameStatus',
+      'setPause'
     ]),
     cameraOffsetX (x) {
       return x - this.cameraCoords.x + window.innerWidth / 2
@@ -70,24 +110,41 @@ export default {
     cameraOffsetY (y) {
       return y - this.cameraCoords.y + window.innerHeight / 2
     },
-    pressedArrow (e) {
+    pressedKey (e) {
       if (!this.getGameStatus) {
         return
       }
+      if (e.key === 'Escape') {
+        this.setPause(!this.getPause)
+      }
+      if (e.key === 'z') {
+        this.megaShot({
+          playerX: this.getCoords.x,
+          playerY: this.getCoords.y,
+          cursorX: this.mouseCoords.x,
+          cursorY: this.mouseCoords.y
+        })
+      }
+      if (e.key === 'x') {
+        this.areaShot({
+          playerX: this.getCoords.x,
+          playerY: this.getCoords.y
+        })
+      }
       const step = 20
-      if (e.key === 'ArrowRight' && this.getCoords.x < window.innerWidth) {
+      if (e.key === 'ArrowRight') {
         this.moveRight()
         this.cameraCoords.x += step
       }
-      if (e.key === 'ArrowLeft' && this.getCoords.x > 0) {
+      if (e.key === 'ArrowLeft') {
         this.moveLeft()
         this.cameraCoords.x -= step
       }
-      if (e.key === 'ArrowUp' && this.getCoords.y > 0) {
+      if (e.key === 'ArrowUp') {
         this.moveUp()
         this.cameraCoords.y -= step
       }
-      if (e.key === 'ArrowDown' && this.getCoords.y < window.innerHeight) {
+      if (e.key === 'ArrowDown') {
         this.moveDown()
         this.cameraCoords.y += step
       }
@@ -106,8 +163,17 @@ export default {
         })
       }, 600)
       setInterval(() => {
+        this.pushEnemyBullet({
+          playerX: this.getCoords.x,
+          playerY: this.getCoords.y
+        })
+      }, 1600)
+      setInterval(() => {
         this.moveBullets()
       }, 16)
+      setInterval(() => {
+        this.moveEnemyBullets()
+      }, 32)
     },
     enemyMovement () {
       setInterval(() => {
@@ -153,6 +219,33 @@ export default {
     transition: 0.2s;
   }
 
+  &__hotbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    font-size: 46px;
+    gap: 10px;
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    padding: 10px;
+    color: white;
+    background-color: rgb(43, 51, 168);
+    border-radius: 2%;
+    transform: translateX(-50%);
+    border: 2px solid gold;
+    box-sizing: border-box;
+
+    &__slot {
+      width: 300px;
+      height: 100px;
+      font-size: 30px;
+      padding: 10px 20px;
+      text-align: center;
+    }
+  }
+
   &__over {
     display: flex;
     flex-direction: column;
@@ -172,6 +265,35 @@ export default {
     border: 2px solid gold;
 
     &__restart {
+      border: 2px solid gold;
+      background-color: rgb(43, 51, 168);
+      color: white;
+      font-size: 30px;
+      padding: 10px 20px;
+    }
+  }
+
+  &__pause {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 46px;
+    gap: 10px;
+    position: absolute;
+    width: 900px;
+    height: 450px;
+    top: 50%;
+    left: 50%;
+    color: white;
+    background-color: rgb(43, 51, 168);
+    border-radius: 2%;
+    transform: translate(-50%, -50%);
+    border: 2px solid gold;
+
+    &__upgrade {
+      width: 450px;
+      height: 60px;
       border: 2px solid gold;
       background-color: rgb(43, 51, 168);
       color: white;
