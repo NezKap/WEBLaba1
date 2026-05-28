@@ -4,8 +4,8 @@
     <MegaShot v-if="getMegaShot" :startX="cameraOffsetX(getMegaShot.startX)" :startY="cameraOffsetY(getMegaShot.startY)" :endX="cameraOffsetX(getMegaShot.endX)" :endY="cameraOffsetY(getMegaShot.endY)" />
     <AreaShot v-if="getAreaShot" :x="cameraOffsetX(getAreaShot.x)" :y="cameraOffsetY(getAreaShot.y)" :radius="getAreaShot.radius" />
     <Bullet v-for="enemyBullet in getEnemyBullets" :key="enemyBullet.id" :x="cameraOffsetX(enemyBullet.x)" :y="cameraOffsetY(enemyBullet.y)" :id="enemyBullet.id" />
-    <div class="map__player" />
-    <Enemy v-for="enemy in getEnemies" :key="enemy.id" :x="cameraOffsetX(enemy.x)" :y="cameraOffsetY(enemy.y)" :type="enemy.type" :id="enemy.id" />
+    <Character characterType="player" :x="playerScreenX" :y="playerScreenY" :direction="direction" :speedLevel="playerSpeedLevel" :isMoving="isMoving" :upgraded="upgraded" />
+    <Character v-for="enemy in getEnemies" :key="enemy.id" characterType="enemy" :x="cameraOffsetX(enemy.x)" :y="cameraOffsetY(enemy.y)" :vx="enemy.vx" :vy="enemy.vy" :enemyType="enemy.type" :direction="enemy.direction" :speed="enemy.speed" :id="enemy.id" />
     <div class="map__hotbar">
       <div class="map__hotbar__slot">Points: {{ getPoints }}</div>
       <div class="map__hotbar__slot">HP: {{ getHealth }} / {{ getHealthLimit }}</div>
@@ -21,28 +21,29 @@
     <div v-if="getPause" class="map__pause">
       Пауза
       <button class="map__pause__upgrade" @click="() => buyHeal()"> Купить хил (10) </button>
-      <button class="map__pause__upgrade" @click="() => increaseDamage()"> Увеличение урона (25) </button>
+      <button class="map__pause__upgrade" @click="() => increaseDamageUpgrade()"> Увеличение урона (25) </button>
       <button class="map__pause__upgrade" @click="() => buyMana()"> Купить ману (15) </button>
-      <button class="map__pause__upgrade" @click="() => increaseHealthLimit()"> Увеличить лимит хп (20) </button>
-      <button class="map__pause__upgrade" @click="() => increaseManaLimit()"> Увеличить лимит маны (30) </button>
+      <button class="map__pause__upgrade" @click="() => increaseHealthLimitUpGrade()"> Увеличить лимит хп (20) </button>
+      <button class="map__pause__upgrade" @click="() => increaseManaLimitUpgrade()"> Увеличить лимит маны (30) </button>
+      <button class="map__pause__upgrade" @click="() => increaseSpeedUpgrade()"> Увеличить скорость (15) </button>
     </div>
   </div>
 </template>
 
 <script>
 import Bullet from './../ui/Bullet.vue'
-import Enemy from './../ui/Enemy.vue'
 import MegaShot from './../ui/MegaShot.vue'
 import AreaShot from './../ui/AreaShot.vue'
+import Character from './../ui/Character.vue'
 import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'GamePage',
   components: {
     Bullet,
-    Enemy,
     MegaShot,
-    AreaShot
+    AreaShot,
+    Character
   },
   data () {
     return {
@@ -53,7 +54,11 @@ export default {
       cameraCoords: {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2
-      }
+      },
+      direction: 'up',
+      speedLevel: 1,
+      isMoving: false,
+      upgraded: false
     }
   },
   computed: {
@@ -65,6 +70,7 @@ export default {
       'getDamage',
       'getMana',
       'getManaLimit',
+      'getSpeed',
       'getBullets',
       'getEnemyBullets',
       'getEnemies',
@@ -72,10 +78,26 @@ export default {
       'getAreaShot',
       'getGameStatus',
       'getPause'
-    ])
+    ]),
+    playerScreenX () {
+      return window.innerWidth / 2
+    },
+    playerScreenY () {
+      return window.innerHeight / 2
+    },
+    playerSpeedLevel () {
+      if (this.getSpeed < 25) {
+        return 1
+      }
+      if (this.getSpeed > 25 && this.getSpeed < 35) {
+        return 2
+      }
+      return 3
+    }
   },
   mounted () {
     window.addEventListener('keydown', (e) => this.pressedKey(e))
+    window.addEventListener('keyup', () => this.upKey())
     this.bulletMovement()
     this.enemyMovement()
   },
@@ -101,6 +123,7 @@ export default {
       'buyMana',
       'increaseHealthLimit',
       'increaseManaLimit',
+      'increaseSpeed',
       'setGameStatus',
       'setPause'
     ]),
@@ -114,6 +137,8 @@ export default {
       if (!this.getGameStatus) {
         return
       }
+      this.isMoving = true
+      const step = this.getSpeed
       if (e.key === 'Escape') {
         this.setPause(!this.getPause)
       }
@@ -131,27 +156,81 @@ export default {
           playerY: this.getCoords.y
         })
       }
-      const step = 20
-      if (e.key === 'ArrowRight') {
+      if (e.key === 'ArrowUp' && this.direction === 'left') {
+        this.direction = 'upLeft'
+      }
+      else if (e.key === 'ArrowLeft' && this.direction === 'up') {
+        this.direction = 'upLeft'
+      }
+      else if (e.key === 'ArrowUp' && this.direction === 'right') {
+        this.direction = 'upRight'
+      }
+      else if (e.key === 'ArrowRight' && this.direction === 'up') {
+        this.direction = 'upRight'
+      }
+      else if (e.key === 'ArrowDown' && this.direction === 'left') {
+        this.direction = 'downLeft'
+      }
+      else if (e.key === 'ArrowLeft' && this.direction === 'down') {
+        this.direction = 'downLeft'
+      }
+      else if (e.key === 'ArrowDown' && this.direction === 'right') {
+        this.direction = 'downRight'
+      }
+      else if (e.key === 'ArrowRight' && this.direction === 'down') {
+        this.direction = 'downRight'
+      }
+      else if (e.key === 'ArrowUp') {
+        this.direction = 'up'
+      }
+      else if (e.key === 'ArrowDown') {
+        this.direction = 'down'
+      }
+      else if (e.key === 'ArrowLeft') {
+        this.direction = 'left'
+      }
+      else if (e.key === 'ArrowRight') {
+        this.direction = 'right'
+      }
+      if (e.key.includes('Right')) {
         this.moveRight()
         this.cameraCoords.x += step
       }
-      if (e.key === 'ArrowLeft') {
+      if (e.key.includes('Left')) {
         this.moveLeft()
         this.cameraCoords.x -= step
       }
-      if (e.key === 'ArrowUp') {
+      if (e.key.includes('Up')) {
         this.moveUp()
         this.cameraCoords.y -= step
       }
-      if (e.key === 'ArrowDown') {
+      if (e.key.includes('Down')) {
         this.moveDown()
         this.cameraCoords.y += step
       }
     },
+    upKey () {
+      this.isMoving = false
+    },
     handleMouseCoords (e) {
       this.mouseCoords.x = e.clientX + this.cameraCoords.x - window.innerWidth / 2
       this.mouseCoords.y = e.clientY + this.cameraCoords.y - window.innerHeight / 2
+    },
+    increaseDamageUpgrade () {
+      this.increaseHealthLimit()
+      this.upgraded = true
+    },
+    increaseHealthLimitUpGrade () {
+      this.increaseHealthLimit()
+      this.upgraded = true
+    },
+    increaseManaLimitUpgrade () {
+      this.increaseManaLimit()
+      this.upgraded = true
+    },
+    increaseSpeedUpgrade () {
+      this.increaseSpeed()
+      this.upgraded = true
     },
     bulletMovement () {
       setInterval(() => {
@@ -282,7 +361,7 @@ export default {
     gap: 10px;
     position: absolute;
     width: 900px;
-    height: 450px;
+    height: 525px;
     top: 50%;
     left: 50%;
     color: white;

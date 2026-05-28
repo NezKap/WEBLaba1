@@ -7,6 +7,7 @@ const MUTATIONS = {
   SET_DAMAGE: 'SET_DAMAGE',
   SET_MANA: 'SET_MANA',
   SET_MANA_LIMIT: 'SET_MANA_LIMIT',
+  SET_SPEED: 'SET_SPEED',
   SET_MEGA_SHOT: 'SET_MEGA_SHOT',
   SET_AREA_SHOT: 'SET_AREA_SHOT',
   SET_GAME_STATUS: 'SET_GAME_STATUS',
@@ -39,6 +40,7 @@ export default {
       damage: 10,
       mana: 25,
       manaLimit: 25,
+      speed: 20,
       bullets: [],
       enemyBullets: [],
       enemies: [],
@@ -56,6 +58,7 @@ export default {
     getDamage: (state) => state.damage,
     getMana: (state) => state.mana,
     getManaLimit: (state) => state.manaLimit,
+    getSpeed: (state) => state.speed,
     getBullets: (state) => state.bullets,
     getEnemyBullets: (state) => state.enemyBullets,
     getEnemies: (state) => state.enemies,
@@ -88,6 +91,9 @@ export default {
     },
     [MUTATIONS.SET_MANA_LIMIT]: (state, payload) => {
       state.manaLimit = payload
+    },
+    [MUTATIONS.SET_SPEED]: (state, payload) => {
+      state.speed = payload
     },
     [MUTATIONS.SET_MEGA_SHOT]: (state, payload) => {
       state.megaShot = payload
@@ -237,14 +243,17 @@ export default {
       }
       let type = "warrior"
       let hp = 20
+      let speed = 5
       const typeRandomizer = Math.random()
       if (typeRandomizer > 0.75) {
         type = "archer"
         hp = 10
+        speed = 6
       }
       else if (typeRandomizer < 0.75 && typeRandomizer > 0.55) {
         type = "tank"
         hp = 40
+        speed = 3
       }
       const offset = 50 + Math.random() * 40
       const side = Math.floor(Math.random() * 4)
@@ -270,7 +279,11 @@ export default {
         x: spawnX,
         y: spawnY,
         hp: hp,
-        type: type
+        type: type,
+        speed,
+        vx: 0,
+        vy: 0,
+        direction: 'up'
       })
     },
     moveEnemies: ({ state, commit }, payload) => {
@@ -309,10 +322,12 @@ export default {
           commit(MUTATIONS.SET_AREA_SHOT, null)
         }
         else {
-          const vx = (dx / length) * 6
-          const vy = (dy / length) * 6
+          const vx = (dx / length) * enemy.speed
+          const vy = (dy / length) * enemy.speed
           enemy.x += vx
           enemy.y += vy
+          enemy.vx = vx
+          enemy.vy = vy
         }
       })
     },
@@ -420,17 +435,28 @@ export default {
       commit(MUTATIONS.SET_POINTS, state.points - 30)
       commit(MUTATIONS.SET_MANA_LIMIT, state.manaLimit + 25)
     },
+    increaseSpeed: ({ state, commit }, payload) => {
+      if (state.points < 15) {
+        return
+      }
+      commit(MUTATIONS.SET_POINTS, state.points - 15)
+      commit(MUTATIONS.SET_SPEED, state.speed + 10)
+    },
     moveLeft: ({ state, commit }, payload) => {
-      commit(MUTATIONS.SET_X_COORD, state.coords.x - 20)
+      const step = state.speed
+      commit(MUTATIONS.SET_X_COORD, state.coords.x - step)
     },
     moveRight: ({ state, commit }, payload) => {
-      commit(MUTATIONS.SET_X_COORD, state.coords.x + 20)
+      const step = state.speed
+      commit(MUTATIONS.SET_X_COORD, state.coords.x + step)
     },
     moveUp: ({ state, commit }, payload) => {
-      commit(MUTATIONS.SET_Y_COORD, state.coords.y - 20)
+      const step = state.speed
+      commit(MUTATIONS.SET_Y_COORD, state.coords.y - step)
     },
     moveDown: ({ state, commit }, payload) => {
-      commit(MUTATIONS.SET_Y_COORD, state.coords.y + 20)
+      const step = state.speed
+      commit(MUTATIONS.SET_Y_COORD, state.coords.y + step)
     },
     addPoints: ({ commit, state }, payload) => {
       commit(MUTATIONS.SET_POINTS, state.points + payload)

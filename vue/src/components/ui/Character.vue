@@ -1,10 +1,36 @@
 <template>
-  <div class="enemy" :style="styles">
+  <div class="character" :style="styles">
     <img :src="currentSprite" class="enemy__sprite">
   </div>
 </template>
 
 <script>
+import up_0 from './../../assets/player/up_0.png'
+import up_1 from './../../assets/player/up_1.png'
+import down_0 from './../../assets/player/down_0.png'
+import down_1 from './../../assets/player/down_1.png'
+import left_0 from './../../assets/player/left_0.png'
+import left_1 from './../../assets/player/left_1.png'
+import right_0 from './../../assets/player/right_0.png'
+import right_1 from './../../assets/player/right_1.png'
+import upLeft_0 from './../../assets/player/upLeft_0.png'
+import upLeft_1 from './../../assets/player/upLeft_1.png'
+import upRight_0 from './../../assets/player/upRight_0.png'
+import upRight_1 from './../../assets/player/upRight_1.png'
+import downLeft_0 from './../../assets/player/downLeft_0.png'
+import downLeft_1 from './../../assets/player/downLeft_1.png'
+import downRight_0 from './../../assets/player/downRight_0.png'
+import downRight_1 from './../../assets/player/downRight_1.png'
+
+import upgraded_up_0 from './../../assets/player/upgraded_up_0.png'
+import upgraded_down_0 from './../../assets/player/upgraded_down_0.png'
+import upgraded_left_0 from './../../assets/player/upgraded_left_0.png'
+import upgraded_right_0 from './../../assets/player/upgraded_right_0.png'
+import upgraded_upLeft_0 from './../../assets/player/upgraded_upLeft_0.png'
+import upgraded_upRight_0 from './../../assets/player/upgraded_upRight_0.png'
+import upgraded_downLeft_0 from './../../assets/player/upgraded_downLeft_0.png'
+import upgraded_downRight_0 from './../../assets/player/upgraded_downRight_0.png'
+
 import warrior_up_0 from './../../assets/enemies/warrior/up_0.png'
 import warrior_up_1 from './../../assets/enemies/warrior/up_1.png'
 import warrior_down_0 from './../../assets/enemies/warrior/down_0.png'
@@ -21,7 +47,6 @@ import warrior_downLeft_0 from './../../assets/enemies/warrior/downLeft_0.png'
 import warrior_downLeft_1 from './../../assets/enemies/warrior/downLeft_1.png'
 import warrior_downRight_0 from './../../assets/enemies/warrior/downRight_0.png'
 import warrior_downRight_1 from './../../assets/enemies/warrior/downRight_1.png'
-
 
 import archer_up_0 from './../../assets/enemies/archer/up_0.png'
 import archer_up_1 from './../../assets/enemies/archer/up_1.png'
@@ -80,9 +105,13 @@ export default {
       type: Number,
       default: 0
     },
-    type: {
+    enemyType: {
       type: String,
       default: "warrior"
+    },
+    characterType: {
+      type: String,
+      default: "player"
     },
     direction: {
       type: String,
@@ -91,6 +120,10 @@ export default {
     speed: {
       type: Number,
       default: 5
+    },
+    isMoving: {
+      type: Boolean,
+      default: false
     }
   },
   data () {
@@ -108,6 +141,26 @@ export default {
     },
     currentSprite () {
       const sprites = {
+        notUpgradedPlayer: {
+          up: [up_0, up_1],
+          down: [down_0, down_1],
+          left: [left_0, left_1],
+          right: [right_0, right_1],
+          upLeft: [upLeft_0, upLeft_1],
+          upRight: [upRight_0, upRight_1],
+          downLeft: [downLeft_0, downLeft_1],
+          downRight: [downRight_0, downRight_1]
+        },
+        upgradedPlayer: {
+          up: [upgraded_up_0, up_1],
+          down: [upgraded_down_0, down_1],
+          left: [upgraded_left_0, left_1],
+          right: [upgraded_right_0, right_1],
+          upLeft: [upgraded_upLeft_0, upLeft_1],
+          upRight: [upgraded_upRight_0, upRight_1],
+          downLeft: [upgraded_downLeft_0, downLeft_1],
+          downRight: [upgraded_downRight_0, downRight_1]
+        },
         warrior: {
           up: [warrior_up_0, warrior_up_1],
           down: [warrior_down_0, warrior_down_1],
@@ -139,9 +192,18 @@ export default {
           downRight: [tank_downRight_0, tank_downRight_1]
         }
       }
-      return sprites[this.type][this.enemyDirection][this.frame]
+      if (this.characterType === 'player') {
+        if (!this.upgraded) {
+          return sprites['notUpgradedPlayer'][this.characterDirection][this.frame]
+        }
+        return sprites['upgradedPlayer'][this.characterDirection][this.frame]
+      }
+      return sprites[this.enemyType][this.characterDirection][this.frame]
     },
-    enemyDirection () {
+    characterDirection () {
+      if (this.characterType === 'player') {
+        return this.direction
+      }
       if (!this.vx && !this.vy) {
         return 'down'
       }
@@ -183,10 +245,22 @@ export default {
       return Math.max(minDelay, maxDelay - this.speed * 30)
     },
     loop (time = 0) {
+      let animate = false
+      if (this.characterType === 'player') {
+        animate = this.isMoving
+      }
+      else {
+        animate = true
+      }
       const delay = this.animationDelay()
-      if (time - this.lastFrameTime > delay) {
-        this.frame = (this.frame + 1) % 2
-        this.lastFrameTime = time
+      if (animate) {
+        if (time - this.lastFrameTime > delay) {
+          this.frame = (this.frame + 1) % 2
+          this.lastFrameTime = time
+        }
+      }
+      else {
+        this.frame = 0
       }
       requestAnimationFrame((time) => this.loop(time))
     }
@@ -195,7 +269,7 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.enemy {
+.character {
   position: absolute;
   border-radius: 50%;
   width: 52px;
